@@ -1,80 +1,76 @@
-import React, { Component } from 'react';
-import { Button, ButtonGroup, Container, Table } from 'reactstrap';
-import NavBar from './NavBar';
-import { Link } from 'react-router-dom';
+import React, { Component } from "react";
+import Axios from "axios";
+
+const BOOKMARK_API_ENDPOINT = "/api/bookmark";
 
 class BookmarkList extends Component {
+  state = {
+    bookmarks: [],
+  };
 
-  constructor(props) {
-    super(props);
-    this.state = {bookmarks: [], isLoading: true};
-    this.remove = this.remove.bind(this);
+  async componentDidMount() {
+    const { data: bookmarks } = await Axios.get(BOOKMARK_API_ENDPOINT);
+    this.setState({ bookmarks });
   }
 
-  componentDidMount() {
-    this.setState({isLoading: true});
+  async handleDelete(id) {
+    const originalBookmarks = [...this.state.bookmarks];
 
-    fetch('api/bookmark')
-      .then(response => response.json())
-      .then(data => this.setState({bookmarks: data, isLoading: false}));
-  }
+    const bookmarks = this.state.bookmarks.filter((b) => b.id !== id);
+    this.setState({ bookmarks });
 
-  async remove(id) {
-    await fetch(`/api/bookmark/${id}`, {
-      method: 'DELETE',
-      headers: {
-        'Accept': 'application/json',
-        'Content-Type': 'application/json'
-      }
-    }).then(() => {
-      let updatedbookmarks = [...this.state.bookmarks].filter(i => i.id !== id);
-      this.setState({bookmarks: updatedbookmarks});
-    });
-  }
-
-  render() {
-    const {bookmarks, isLoading} = this.state;
-
-    if (isLoading) {
-      return <p>Loading...</p>;
+    try {
+      await Axios.delete(BOOKMARK_API_ENDPOINT + "/" + id);
+    } catch (e) {
+      alert("Something went wroung during deletion of a bookmark.");
+      this.setState({ bookmarks: originalBookmarks });
     }
+  }
 
-    const bookmarkList = bookmarks.map(bookmark => {
-      return <tr key={bookmark.id}>
-        <td style={{whiteSpace: 'nowrap'}}>{bookmark.name}</td>
-        <td><a href={bookmark.url}>{bookmark.url}</a></td>
-        <td>{bookmark.description}</td>
+  renderTableRow = (bookmark) => {
+    const { id, name, url, description } = bookmark;
+    return (
+      <tr key={id}>
+        <th scope="row">{name}</th>
         <td>
-          <ButtonGroup>
-            <Button size="sm" color="primary" tag={Link} to={"/bookmarks/" + bookmark.id}>Edit</Button>
-            <Button size="sm" color="danger" onClick={() => this.remove(bookmark.id)}>Delete</Button>
-          </ButtonGroup>
+          <a href={url}>{url}</a>
+        </td>
+        <td>{description}</td>
+        <td>
+          <button
+            onClick={() => this.handleDelete(id)}
+            id={id}
+            className="btn btn-sm btn-danger"
+          >
+            Delete
+          </button>
         </td>
       </tr>
-    });
+    );
+  };
 
+  render() {
     return (
       <div>
-        <NavBar/>
-        <Container fluid>
-          <div className="float-right">
-            <Button color="success" tag={Link} to="/bookmarks/new">Add bookmark</Button>
-          </div>
-          <h3>My Bookmarks</h3>
-          <Table className="mt-4">
-            <thead>
+        <h1 className="m-2 mb-4">My Bookmarks</h1>
+        <table className="table m-2">
+          <thead className="thead-light">
             <tr>
-              <th width="20%">Name</th>
-              <th width="20%">URL</th>
-              <th>Description</th>
-              <th width="10%">Actions</th>
+              <th scope="col">Name</th>
+              <th scope="col">Link</th>
+              <th scope="col">Description</th>
+              <th scope="col">Delete</th>
             </tr>
-            </thead>
-            <tbody>
-            {bookmarkList}
-            </tbody>
-          </Table>
-        </Container>
+          </thead>
+          <tbody>
+            {this.state.bookmarks.length === 0 && (
+              <tr>
+                <td colSpan="4">Nothing to show...</td>
+              </tr>
+            )}
+            {this.state.bookmarks.map(this.renderTableRow)}
+          </tbody>
+        </table>
       </div>
     );
   }
